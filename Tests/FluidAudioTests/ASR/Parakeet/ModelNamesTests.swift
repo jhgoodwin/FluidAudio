@@ -8,7 +8,7 @@ final class ModelNamesTests: XCTestCase {
     // MARK: - Repo
 
     func testRepoRemotePathContainsOwner() {
-        let fluidParakeetRepos: Set<Repo> = [.fluidParakeetMini, .fluidParakeetPico]
+        let fluidParakeetRepos: Set<Repo> = [.fluidParakeetMini, .fluidParakeetPico, .fluidParakeetPro]
         for repo in Repo.allCases {
             let owner = fluidParakeetRepos.contains(repo) ? "altic-dev/" : "FluidInference/"
             XCTAssertTrue(

@@ -13,6 +13,9 @@ public enum AsrModelVersion: CaseIterable, Sendable {
     case fluidParakeetMini
     /// Fluid Parakeet Pico: the smallest compressed v3 (English). Same contract as v3.
     case fluidParakeetPico
+    /// Fluid Parakeet Pro: full-size v3 fine-tune with one extra block inside the encoder (English).
+    /// Same contract as v3.
+    case fluidParakeetPro
 
     /// Repository descriptor and isolated cache folder associated with this version.
     public var repo: Repo {
@@ -22,16 +25,17 @@ public enum AsrModelVersion: CaseIterable, Sendable {
         case .tdtCtc110m: return .parakeetTdtCtc110m
         case .fluidParakeetMini: return .fluidParakeetMini
         case .fluidParakeetPico: return .fluidParakeetPico
+        case .fluidParakeetPro: return .fluidParakeetPro
         }
     }
 
-    /// Mini/Pico use extracted hosted model packs; their repository descriptors identify caches,
+    /// Mini/Pico/Pro use extracted model packs; their repository descriptors identify caches,
     /// not a public Hugging Face download. All existing versions retain automatic downloads.
     public var requiresLocalModels: Bool {
-        self == .fluidParakeetMini || self == .fluidParakeetPico
+        self == .fluidParakeetMini || self == .fluidParakeetPico || self == .fluidParakeetPro
     }
 
-    /// Verified hosted artifact location for manually installing Mini/Pico model packs.
+    /// Verified hosted artifact location for manually installing Mini/Pico model packs (Pro is not hosted yet).
     public var hostedModelArchiveURL: URL? {
         switch self {
         case .fluidParakeetMini:
@@ -62,7 +66,7 @@ public enum AsrModelVersion: CaseIterable, Sendable {
     public var blankId: Int {
         switch self {
         case .v2, .tdtCtc110m: return 1024
-        case .v3, .fluidParakeetMini, .fluidParakeetPico: return 8192
+        case .v3, .fluidParakeetMini, .fluidParakeetPico, .fluidParakeetPro: return 8192
         }
     }
 
@@ -525,7 +529,7 @@ extension AsrModels {
             if !force && localModelsExist(at: targetDir, version: version) { return targetDir }
             let archive = version.hostedModelArchiveURL?.absoluteString ?? "the FluidVoice hosted model pack"
             throw AsrModelsError.downloadFailed(
-                "Mini/Pico require installed local models. Download and extract \(archive), then use "
+                "Mini/Pico/Pro require installed local models. Download and extract \(archive), then use "
                     + "loadLocalOnly(from:version:) or CLI --model-dir <extracted-folder>. Existing files were preserved."
             )
         }

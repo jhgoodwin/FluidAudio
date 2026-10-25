@@ -383,7 +383,7 @@ public actor AsrManager {
                 isLastChunk: isLastChunk,
                 globalFrameOffset: globalFrameOffset
             )
-        case .v3, .fluidParakeetMini, .fluidParakeetPico:
+        case .v3, .fluidParakeetMini, .fluidParakeetPico, .fluidParakeetPro:
             let decoder = TdtDecoderV3(config: adaptedConfig)
             return try await decoder.decodeWithTimings(
                 encoderOutput: encoderOutput,

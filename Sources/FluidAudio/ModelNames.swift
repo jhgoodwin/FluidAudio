@@ -24,6 +24,7 @@ public enum Repo: String, CaseIterable {
     /// Cache/artifact identity for local hosted packs; AsrModels does not auto-download these from HF.
     case fluidParakeetMini = "altic-dev/fluid-parakeet-mini-coreml"
     case fluidParakeetPico = "altic-dev/fluid-parakeet-pico-coreml"
+    case fluidParakeetPro = "altic-dev/fluid-parakeet-pro-coreml"
 
     /// Repository slug (without owner)
     public var name: String {
@@ -70,6 +71,8 @@ public enum Repo: String, CaseIterable {
             return "fluid-parakeet-mini-coreml"
         case .fluidParakeetPico:
             return "fluid-parakeet-pico-coreml"
+        case .fluidParakeetPro:
+            return "fluid-parakeet-pro-coreml"
         }
     }
 
@@ -92,7 +95,7 @@ public enum Repo: String, CaseIterable {
             return "FluidInference/qwen3-asr-0.6b-coreml"
         case .parakeetTdtCtc110m:
             return "FluidInference/parakeet-tdt-ctc-110m-coreml"
-        case .fluidParakeetMini, .fluidParakeetPico:
+        case .fluidParakeetMini, .fluidParakeetPico, .fluidParakeetPro:
             return rawValue
         default:
             return "FluidInference/\(name)"
@@ -587,7 +590,7 @@ public enum ModelNames {
         switch repo {
         case .vad:
             return ModelNames.VAD.requiredModels
-        case .parakeet, .parakeetV2, .fluidParakeetMini, .fluidParakeetPico:
+        case .parakeet, .parakeetV2, .fluidParakeetMini, .fluidParakeetPico, .fluidParakeetPro:
             return ModelNames.ASR.requiredModels
         case .parakeetTdtCtc110m:
             return ModelNames.ASR.requiredModelsFused

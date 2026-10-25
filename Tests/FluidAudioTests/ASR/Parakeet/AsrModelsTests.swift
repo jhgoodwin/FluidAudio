@@ -351,10 +351,11 @@ final class AsrModelsTests: XCTestCase {
         XCTAssertEqual(AsrModelVersion.v3.repo, .parakeet)
         XCTAssertEqual(AsrModelVersion.fluidParakeetMini.repo, .fluidParakeetMini)
         XCTAssertEqual(AsrModelVersion.fluidParakeetPico.repo, .fluidParakeetPico)
+        XCTAssertEqual(AsrModelVersion.fluidParakeetPro.repo, .fluidParakeetPro)
     }
 
     func testFluidParakeetVersionsKeepV3Contract() {
-        for version in [AsrModelVersion.fluidParakeetMini, .fluidParakeetPico] {
+        for version in [AsrModelVersion.fluidParakeetMini, .fluidParakeetPico, .fluidParakeetPro] {
             XCTAssertEqual(version.blankId, AsrModelVersion.v3.blankId)
             XCTAssertEqual(version.decoderLayers, AsrModelVersion.v3.decoderLayers)
             XCTAssertEqual(version.encoderHiddenSize, AsrModelVersion.v3.encoderHiddenSize)
@@ -366,6 +367,7 @@ final class AsrModelsTests: XCTestCase {
         }
         XCTAssertEqual(Repo.fluidParakeetMini.folderName, "fluid-parakeet-mini-coreml")
         XCTAssertEqual(Repo.fluidParakeetPico.remotePath, "altic-dev/fluid-parakeet-pico-coreml")
+        XCTAssertEqual(Repo.fluidParakeetPro.folderName, "fluid-parakeet-pro-coreml")
     }
 
     func testEveryVersionHasAnIsolatedCacheAndLegacyDefaultsStayV3() {
@@ -472,6 +474,15 @@ final class AsrModelsTests: XCTestCase {
             let valid = try await AsrModels.isModelValid(version: version, at: folder)
             XCTAssertFalse(valid)
         }
+        XCTAssertTrue(AsrModelVersion.fluidParakeetPro.requiresLocalModels)
+        XCTAssertNil(AsrModelVersion.fluidParakeetPro.hostedModelArchiveURL)
+        do {
+            _ = try await AsrModels.download(to: folder, force: true, version: .fluidParakeetPro)
+            XCTFail("Pro has no hosted pack and must not download or delete existing files")
+        } catch let error as AsrModelsError {
+            XCTAssertTrue(error.localizedDescription.contains("--model-dir"))
+        }
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), [marker.lastPathComponent])
         for version in [AsrModelVersion.v2, .v3, .tdtCtc110m] {
             XCTAssertFalse(version.requiresLocalModels)
             XCTAssertNil(version.hostedModelArchiveURL)
@@ -481,11 +492,14 @@ final class AsrModelsTests: XCTestCase {
     /// Opt-in integration proof uses installed real models and recorded speech, never fixtures.
     func testFluidParakeetRealModelsTranscribeRecordedSpeech() async throws {
         let environment = ProcessInfo.processInfo.environment
-        guard let mini = environment["FLUIDAUDIO_MINI_MODEL_DIR"],
-            let pico = environment["FLUIDAUDIO_PICO_MODEL_DIR"],
-            let recording = environment["FLUIDAUDIO_PARAKEET_TEST_AUDIO"]
-        else { throw XCTSkip("Provide Mini/Pico compiled models and recorded speech for local inference proof.") }
-        for (directory, version) in [(mini, AsrModelVersion.fluidParakeetMini), (pico, .fluidParakeetPico)] {
+        let installed = [
+            ("FLUIDAUDIO_MINI_MODEL_DIR", AsrModelVersion.fluidParakeetMini),
+            ("FLUIDAUDIO_PICO_MODEL_DIR", .fluidParakeetPico),
+            ("FLUIDAUDIO_PRO_MODEL_DIR", .fluidParakeetPro),
+        ].compactMap { key, version in environment[key].map { ($0, version) } }
+        guard !installed.isEmpty, let recording = environment["FLUIDAUDIO_PARAKEET_TEST_AUDIO"]
+        else { throw XCTSkip("Provide Mini/Pico/Pro compiled models and recorded speech for local inference proof.") }
+        for (directory, version) in installed {
             let models = try await AsrModels.loadLocalOnly(from: URL(fileURLWithPath: directory), version: version)
             XCTAssertEqual(models.version, version)
             XCTAssertEqual(models.vocabulary.count, 8192)
