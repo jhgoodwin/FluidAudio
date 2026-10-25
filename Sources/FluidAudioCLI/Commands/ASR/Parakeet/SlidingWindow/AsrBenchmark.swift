@@ -827,9 +827,11 @@ extension ASRBenchmark {
                         modelVersion = .fluidParakeetMini
                     case "fluid-pico", "pico":
                         modelVersion = .fluidParakeetPico
+                    case "fluid-pro", "pro":
+                        modelVersion = .fluidParakeetPro
                     default:
                         logger.error(
-                            "Invalid model version: \(arguments[i + 1]). Use 'v2', 'v3', 'tdt-ctc-110m', 'fluid-mini' or 'fluid-pico'"
+                            "Invalid model version: \(arguments[i + 1]). Use 'v2', 'v3', 'tdt-ctc-110m', 'fluid-mini', 'fluid-pico' or 'fluid-pro'"
                         )
                         exit(1)
                     }
@@ -855,6 +857,7 @@ extension ASRBenchmark {
         case .tdtCtc110m: versionLabel = "tdt-ctc-110m"
         case .fluidParakeetMini: versionLabel = "fluid-mini"
         case .fluidParakeetPico: versionLabel = "fluid-pico"
+        case .fluidParakeetPro: versionLabel = "fluid-pro"
         }
         logger.info("   Model version: \(versionLabel)")
         logger.info("   Debug mode: \(debugMode ? "enabled" : "disabled")")
@@ -1153,8 +1156,8 @@ extension ASRBenchmark {
                 --max-files <number>      Maximum number of files to process (default: all)
                 --single-file <id>        Process only a specific file (e.g., 1089-134686-0011)
                 --output <file>           Output JSON file path (default: asr_benchmark_results.json)
-                --model-version <version> ASR model version to use: v2, v3, tdt-ctc-110m, fluid-mini or fluid-pico (default: v3)
-                --model-dir <path>      Extracted local model folder (required for Mini/Pico)
+                --model-version <version> ASR model version to use: v2, v3, tdt-ctc-110m, fluid-mini, fluid-pico or fluid-pro (default: v3)
+                --model-dir <path>      Extracted local model folder (required for Mini/Pico/Pro)
                 Mini/Pico packs: https://models.fluidvoice.app/parakeet/fluid-mini/1.0.0/fluid-parakeet-mini-coreml.tar
                                 https://models.fluidvoice.app/parakeet/fluid-pico/1.0.0/fluid-parakeet-pico-coreml.tar
                 --debug                   Enable debug logging

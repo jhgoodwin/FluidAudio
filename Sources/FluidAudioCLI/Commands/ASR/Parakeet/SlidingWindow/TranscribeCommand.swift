@@ -267,9 +267,11 @@ enum TranscribeCommand {
                         modelVersion = .fluidParakeetMini
                     case "fluid-pico", "pico":
                         modelVersion = .fluidParakeetPico
+                    case "fluid-pro", "pro":
+                        modelVersion = .fluidParakeetPro
                     default:
                         logger.error(
-                            "Invalid model version: \(arguments[i + 1]). Use 'v2', 'v3', 'tdt-ctc-110m', 'fluid-mini' or 'fluid-pico'"
+                            "Invalid model version: \(arguments[i + 1]). Use 'v2', 'v3', 'tdt-ctc-110m', 'fluid-mini', 'fluid-pico' or 'fluid-pro'"
                         )
                         exit(1)
                     }
@@ -527,6 +529,7 @@ enum TranscribeCommand {
                 case .tdtCtc110m: modelVersionLabel = "tdt-ctc-110m"
                 case .fluidParakeetMini: modelVersionLabel = "fluid-mini"
                 case .fluidParakeetPico: modelVersionLabel = "fluid-pico"
+                case .fluidParakeetPro: modelVersionLabel = "fluid-pro"
                 }
                 let output = TranscriptionJSONOutput(
                     audioFile: audioFile,
@@ -791,6 +794,7 @@ enum TranscribeCommand {
                 case .tdtCtc110m: modelVersionLabel = "tdt-ctc-110m"
                 case .fluidParakeetMini: modelVersionLabel = "fluid-mini"
                 case .fluidParakeetPico: modelVersionLabel = "fluid-pico"
+                case .fluidParakeetPro: modelVersionLabel = "fluid-pro"
                 }
                 let output = TranscriptionJSONOutput(
                     audioFile: audioFile,
@@ -974,8 +978,8 @@ enum TranscribeCommand {
                 --metadata         Show confidence, start time, and end time in results
                 --word-timestamps  Show word-level timestamps for each word in the transcription
                 --output-json <file>  Save full transcription result to JSON (includes word timings)
-                --model-version <version>  ASR model version: v2, v3, tdt-ctc-110m, fluid-mini or fluid-pico (default: v3)
-                --model-dir <path>     Extracted local model folder (required for Mini/Pico; skips download)
+                --model-version <version>  ASR model version: v2, v3, tdt-ctc-110m, fluid-mini, fluid-pico or fluid-pro (default: v3)
+                --model-dir <path>     Extracted local model folder (required for Mini/Pico/Pro; skips download)
                 Mini/Pico packs: https://models.fluidvoice.app/parakeet/fluid-mini/1.0.0/fluid-parakeet-mini-coreml.tar
                                 https://models.fluidvoice.app/parakeet/fluid-pico/1.0.0/fluid-parakeet-pico-coreml.tar
                 --custom-vocab <file>  Apply vocabulary boosting using terms from file (batch mode only)
