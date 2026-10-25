@@ -14,7 +14,8 @@ public enum AsrModelVersion: CaseIterable, Sendable {
     /// Fluid Parakeet Pico: the smallest compressed v3 (English). Same contract as v3.
     case fluidParakeetPico
     /// Fluid Parakeet Pro: full-size v3 fine-tune with one extra block inside the encoder (English).
-    /// Same contract as v3.
+    /// Same contract as v3. Installed locally as an 8-bit Mac pack (one encoder) with its own
+    /// NeMo-exact preprocessor; the encoder must be paired with that preprocessor.
     case fluidParakeetPro
 
     /// Repository descriptor and isolated cache folder associated with this version.

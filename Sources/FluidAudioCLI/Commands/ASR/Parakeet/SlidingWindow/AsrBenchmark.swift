@@ -1160,6 +1160,7 @@ extension ASRBenchmark {
                 --model-dir <path>      Extracted local model folder (required for Mini/Pico/Pro)
                 Mini/Pico packs: https://models.fluidvoice.app/parakeet/fluid-mini/1.0.0/fluid-parakeet-mini-coreml.tar
                                 https://models.fluidvoice.app/parakeet/fluid-pico/1.0.0/fluid-parakeet-pico-coreml.tar
+                Pro pack: not hosted yet; install fluid-parakeet-pro-coreml in the FluidAudio models folder or pass --model-dir
                 --debug                   Enable debug logging
                 --auto-download           Automatically download LibriSpeech dataset (default)
                 --no-auto-download        Disable automatic dataset download

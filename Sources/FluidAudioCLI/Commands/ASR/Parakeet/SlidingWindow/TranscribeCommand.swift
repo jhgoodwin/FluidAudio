@@ -982,6 +982,7 @@ enum TranscribeCommand {
                 --model-dir <path>     Extracted local model folder (required for Mini/Pico/Pro; skips download)
                 Mini/Pico packs: https://models.fluidvoice.app/parakeet/fluid-mini/1.0.0/fluid-parakeet-mini-coreml.tar
                                 https://models.fluidvoice.app/parakeet/fluid-pico/1.0.0/fluid-parakeet-pico-coreml.tar
+                Pro pack: not hosted yet; install fluid-parakeet-pro-coreml in the FluidAudio models folder or pass --model-dir
                 --custom-vocab <file>  Apply vocabulary boosting using terms from file (batch mode only)
                 --parakeet-variant <variant>  Use any Parakeet model via StreamingAsrEngine protocol
 
