@@ -4,7 +4,7 @@ import Foundation
 
 // Benchmarks Fluid Speech Pro on real recordings with FluidVoice settings (preprocessor on cpuAndGPU).
 // Usage: parakeet-bench <model-dir> <audio-dir> <out-dir> <pass,pass,...>
-//   pass = ane (default placement) | gpu (encoder on GPU) | pN (N parallel chunks, e.g. p4)
+//   pass = ane (default placement, serial chunks) | pN (N parallel chunks, e.g. p4)
 //   Alternate passes (e.g. ane,p4,ane,p4) and compare with: ./compare.py results/<run>/pass*.json
 let args = CommandLine.arguments
 let modelDir = URL(fileURLWithPath: args[1])
@@ -43,13 +43,11 @@ struct PassResult: Codable {
 
 let clock = ContinuousClock()
 for (index, pass) in passes.enumerated() {
-    let encoderUnits: MLComputeUnits? = pass == "gpu" ? .cpuAndGPU : nil
     let concurrency = pass.hasPrefix("p") ? Int(pass.dropFirst()) ?? 1 : 1
     let loadStart = clock.now
     let models = try await AsrModels.loadLocalOnly(
         from: modelDir, version: .fluidParakeetPro,
-        preprocessorComputeUnits: .cpuAndGPU,
-        encoderComputeUnits: encoderUnits)
+        preprocessorComputeUnits: .cpuAndGPU)
     let manager = AsrManager(config: ASRConfig(parallelChunkConcurrency: concurrency))
     try await manager.initialize(models: models)
     let loadSeconds = seconds(clock.now - loadStart)
