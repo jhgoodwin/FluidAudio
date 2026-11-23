@@ -240,7 +240,7 @@ extension CtcKeywordSpotter {
 
     // MARK: - Audio Preparation
 
-    private func prepareAudioArray(_ audioSamples: [Float]) throws -> (MLMultiArray, Int) {
+    func prepareAudioArray(_ audioSamples: [Float]) throws -> (MLMultiArray, Int) {
         let clampedCount = min(audioSamples.count, maxModelSamples)
 
         // Detect expected input rank from the MelSpectrogram model's 'audio' feature description.
@@ -262,8 +262,12 @@ extension CtcKeywordSpotter {
             array = try MLMultiArray(shape: [NSNumber(value: maxModelSamples)], dataType: dataType)
         }
 
-        // Copy actual samples directly into the backing buffer. MLMultiArray is
-        // zero-initialized, so the unused fixed-length tail remains padded.
+        // The shape initializer leaves storage uninitialized, and the mel model reads the whole window,
+        // so zero it before copying the samples into the front (FluidInference/FluidAudio#1003).
+        let elementBytes = dataType == .float16 ? MemoryLayout<UInt16>.stride : MemoryLayout<Float>.stride
+        array.dataPointer.initializeMemory(as: UInt8.self, repeating: 0, count: array.count * elementBytes)
+
+        // Copy actual samples directly into the backing buffer.
         if clampedCount > 0 {
             switch dataType {
             case .float16:
