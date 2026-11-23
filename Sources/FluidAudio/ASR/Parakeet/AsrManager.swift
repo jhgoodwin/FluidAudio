@@ -134,6 +134,14 @@ public actor AsrManager {
         logger.info("AsrManager initialized successfully with provided models")
     }
 
+    /// Creates an independent manager sharing this manager's loaded models, for parallel chunk work.
+    internal func makeChunkWorker() async throws -> AsrManager? {
+        guard let models = asrModels else { return nil }
+        let worker = AsrManager(config: config)
+        try await worker.initialize(models: models)
+        return worker
+    }
+
     /// Configure vocabulary boosting for batch transcription.
     ///
     /// When configured, vocabulary terms will be automatically rescored after each `transcribe()` call
@@ -362,6 +370,7 @@ public actor AsrManager {
                 sampleRate: config.sampleRate,
                 tdtConfig: config.tdtConfig,
                 encoderHiddenSize: models.version.encoderHiddenSize,
+                parallelChunkConcurrency: config.parallelChunkConcurrency,
                 streamingEnabled: config.streamingEnabled,
                 streamingThreshold: config.streamingThreshold
             )

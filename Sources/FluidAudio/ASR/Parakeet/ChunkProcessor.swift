@@ -42,11 +42,22 @@ struct ChunkProcessor {
             physicalMemoryBytes: physicalMemoryBytes,
             availableMemoryBytes: availableMemoryBytes
         )
-        let chunkOutputs = try await processChunks(
-            using: manager,
-            pipeliningEnabled: pipeliningEnabled,
-            progressHandler: progressHandler
-        )
+        let concurrency = await manager.config.parallelChunkConcurrency
+        let pronunciationActive = await manager.pronunciationCustomizationEnabled
+        let chunkOutputs: [[TokenWindow]]
+        if concurrency > 1, !pronunciationActive {
+            chunkOutputs = try await processChunksParallel(
+                using: manager,
+                concurrency: concurrency,
+                progressHandler: progressHandler
+            )
+        } else {
+            chunkOutputs = try await processChunks(
+                using: manager,
+                pipeliningEnabled: pipeliningEnabled,
+                progressHandler: progressHandler
+            )
+        }
 
         guard var mergedTokens = chunkOutputs.first else {
             return await manager.processTranscriptionResult(
@@ -334,6 +345,63 @@ struct ChunkProcessor {
         }
 
         return chunkOutputs
+    }
+
+    /// Transcribes independent chunks on a pool of workers sharing the loaded models, then
+    /// returns their outputs in chunk order for the existing merge.
+    private func processChunksParallel(
+        using manager: AsrManager,
+        concurrency: Int,
+        progressHandler: ((Double) async -> Void)?
+    ) async throws -> [[TokenWindow]] {
+        var works: [ChunkWork] = []
+        var chunkStart = 0
+        while let work = try makeChunkWork(chunkStart: chunkStart, chunkIndex: works.count) {
+            works.append(work)
+            if work.isLastChunk { break }
+            chunkStart += strideSamples
+        }
+        guard !works.isEmpty else { return [] }
+
+        var workers = [manager]
+        for _ in 1..<min(concurrency, works.count) {
+            guard let worker = try await manager.makeChunkWorker() else { break }
+            workers.append(worker)
+        }
+        let decoderLayers = await manager.getDecoderLayers()
+        logger.debug("Transcribing \(works.count) chunks on \(workers.count) workers")
+
+        var outputs = [[TokenWindow]?](repeating: nil, count: works.count)
+        try await withThrowingTaskGroup(of: (index: Int, worker: Int, window: [TokenWindow]).self) { group in
+            func submit(_ index: Int, on workerIndex: Int) {
+                let work = works[index]
+                let worker = workers[workerIndex]
+                group.addTask {
+                    var decoderState = TdtDecoderState.make(decoderLayers: decoderLayers)
+                    let window = try await ParakeetChunkInference.transcribe(
+                        work: work, using: worker, decoderState: &decoderState)
+                    return (index, workerIndex, window)
+                }
+            }
+            var nextIndex = 0
+            for workerIndex in workers.indices where nextIndex < works.count {
+                submit(nextIndex, on: workerIndex)
+                nextIndex += 1
+            }
+            var completed = 0
+            while let finished = try await group.next() {
+                outputs[finished.index] = finished.window
+                completed += 1
+                if let progressHandler, completed < works.count {
+                    await progressHandler(Double(completed) / Double(works.count))
+                }
+                guard nextIndex < works.count else { continue }
+                try Task.checkCancellation()
+                submit(nextIndex, on: finished.worker)
+                nextIndex += 1
+            }
+        }
+        return outputs.compactMap { $0 }
     }
 
     private func makeChunkWork(chunkStart: Int, chunkIndex: Int) throws -> ChunkWork? {

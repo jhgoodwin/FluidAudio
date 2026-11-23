@@ -534,6 +534,34 @@ final class AsrModelsTests: XCTestCase {
         }
     }
 
+    func testParallelChunkConcurrencyDefaultsToSerialAndClampsToOne() {
+        XCTAssertEqual(ASRConfig.default.parallelChunkConcurrency, 1)
+        XCTAssertEqual(ASRConfig(parallelChunkConcurrency: 0).parallelChunkConcurrency, 1)
+        XCTAssertEqual(ASRConfig(parallelChunkConcurrency: 4).parallelChunkConcurrency, 4)
+    }
+
+    func testFluidParakeetParallelChunksMatchSerialTranscript() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let directory = environment["FLUIDAUDIO_PRO_MODEL_DIR"],
+            let recording = environment["FLUIDAUDIO_PARAKEET_TEST_AUDIO"]
+        else { throw XCTSkip("Provide the Pro compiled model and recorded speech to compare chunk scheduling.") }
+        let samples = try AudioConverter().resampleAudioFile(URL(fileURLWithPath: recording))
+        guard samples.count > ASRConstants.maxModelSamples else {
+            throw XCTSkip("Recorded speech must be longer than one model window to exercise chunking.")
+        }
+        let models = try await AsrModels.loadLocalOnly(
+            from: URL(fileURLWithPath: directory), version: .fluidParakeetPro)
+        var transcripts: [String] = []
+        for concurrency in [1, 4] {
+            let manager = AsrManager(config: ASRConfig(parallelChunkConcurrency: concurrency))
+            try await manager.initialize(models: models)
+            transcripts.append(try await manager.transcribe(samples, source: .microphone).text)
+            await manager.cleanup()
+        }
+        XCTAssertFalse(transcripts[0].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        XCTAssertEqual(transcripts[0], transcripts[1])
+    }
+
     /// Explicit opt-in permits downloading the real auxiliary CTC110m model through the library API.
     func testFluidParakeetRealModelsSupportCtc110mVocabularyBoosting() async throws {
         let environment = ProcessInfo.processInfo.environment
