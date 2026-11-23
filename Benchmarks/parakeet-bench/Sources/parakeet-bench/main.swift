@@ -6,6 +6,7 @@ import Foundation
 // Usage: parakeet-bench <model-dir> <audio-dir> <out-dir> <pass,pass,...>
 //   pass = ane (default placement, serial chunks) | pN (N parallel chunks, e.g. p4)
 //   Alternate passes (e.g. ane,p4,ane,p4) and compare with: ./compare.py results/<run>/pass*.json
+//   PARAKEET_BENCH_VOCAB=<FluidVoice-format vocabulary JSON> enables CTC110m vocabulary boosting on every pass.
 let args = CommandLine.arguments
 let modelDir = URL(fileURLWithPath: args[1])
 let audioDir = URL(fileURLWithPath: args[2])
@@ -32,6 +33,30 @@ struct ClipResult: Codable {
     let audioSeconds: Double
     let processingSeconds: Double
     let text: String
+    let ctcAppliedTerms: [String]?
+}
+
+/// Mirrors FluidVoice's ParakeetVocabularyStore: load the JSON, tokenize each term with the CTC110m tokenizer.
+func loadBoostingVocabulary(from path: String) async throws -> (CustomVocabularyContext, CtcModels) {
+    let loaded = try CustomVocabularyContext.load(from: URL(fileURLWithPath: path))
+    let ctcModels = try await CtcModels.downloadAndLoad(variant: .ctc110m)
+    let tokenizer = try await CtcTokenizer.load(from: CtcModels.defaultCacheDirectory(for: .ctc110m))
+    let terms = loaded.terms.compactMap { term -> CustomVocabularyTerm? in
+        let tokens = tokenizer.encode(term.text)
+        guard !tokens.isEmpty else { return nil }
+        return CustomVocabularyTerm(
+            text: term.text, weight: term.weight, aliases: term.aliases, tokenIds: nil, ctcTokenIds: tokens)
+    }
+    let vocabulary = CustomVocabularyContext(
+        terms: terms, alpha: loaded.alpha, minCtcScore: loaded.minCtcScore, minSimilarity: loaded.minSimilarity,
+        minCombinedConfidence: loaded.minCombinedConfidence, minTermLength: loaded.minTermLength)
+    return (vocabulary, ctcModels)
+}
+
+var boosting: (CustomVocabularyContext, CtcModels)?
+if let path = ProcessInfo.processInfo.environment["PARAKEET_BENCH_VOCAB"] {
+    boosting = try await loadBoostingVocabulary(from: path)
+    print("Vocabulary boosting with \(boosting?.0.terms.count ?? 0) terms")
 }
 
 struct PassResult: Codable {
@@ -50,6 +75,9 @@ for (index, pass) in passes.enumerated() {
         preprocessorComputeUnits: .cpuAndGPU)
     let manager = AsrManager(config: ASRConfig(parallelChunkConcurrency: concurrency))
     try await manager.initialize(models: models)
+    if let (vocabulary, ctcModels) = boosting {
+        try await manager.configureVocabularyBoosting(vocabulary: vocabulary, ctcModels: ctcModels)
+    }
     let loadSeconds = seconds(clock.now - loadStart)
     _ = try await manager.transcribe(clips[0].samples, source: .microphone)
 
@@ -60,7 +88,8 @@ for (index, pass) in passes.enumerated() {
         results.append(
             ClipResult(
                 name: clip.name, audioSeconds: Double(clip.samples.count) / 16_000,
-                processingSeconds: seconds(clock.now - start), text: result.text))
+                processingSeconds: seconds(clock.now - start), text: result.text,
+                ctcAppliedTerms: result.ctcAppliedTerms))
     }
     await manager.cleanup()
     let total = results.reduce(0.0) { $0 + $1.processingSeconds }

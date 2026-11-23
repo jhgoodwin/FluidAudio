@@ -148,6 +148,64 @@ extension VocabularyRescorer {
         marginSeconds: Double = ContextBiasingConstants.defaultMarginSeconds,
         minSimilarity: Float = ContextBiasingConstants.minSimilarityFloor
     ) -> RescoreOutput {
+        var candidateFound: Bool?
+        return rescore(
+            transcript: transcript,
+            tokenTimings: tokenTimings,
+            logProbs: logProbs,
+            frameDuration: frameDuration,
+            cbw: cbw,
+            marginSeconds: marginSeconds,
+            minSimilarity: minSimilarity,
+            candidateFound: &candidateFound
+        )
+    }
+
+    /// Whether rescoring this transcript would need CTC evidence.
+    ///
+    /// Runs the same candidate discovery and text safety guards as ``ctcTokenRescore`` without CTC
+    /// log-probabilities, stopping at the first candidate that would be scored acoustically. A false result
+    /// means ``ctcTokenRescore`` would return the transcript unchanged, so CTC inference can be skipped.
+    ///
+    /// - Parameters:
+    ///   - transcript: Untouched transcript from the TDT decoder.
+    ///   - tokenTimings: Token-level timings from the TDT decoder.
+    ///   - minSimilarity: The same vocabulary threshold used for rescoring.
+    /// - Returns: False only when rescoring has no candidate requiring CTC evidence.
+    public func hasCTCRescoringCandidates(
+        transcript: String,
+        tokenTimings: [TokenTiming],
+        minSimilarity: Float = ContextBiasingConstants.minSimilarityFloor
+    ) -> Bool {
+        guard !vocabulary.terms.isEmpty, !tokenTimings.isEmpty else { return false }
+        var candidateFound: Bool? = false
+        _ = rescore(
+            transcript: transcript,
+            tokenTimings: tokenTimings,
+            logProbs: [],
+            frameDuration: 0,
+            cbw: 0,
+            marginSeconds: 0,
+            minSimilarity: minSimilarity,
+            candidateFound: &candidateFound
+        )
+        return candidateFound == true
+    }
+
+    /// Dispatches to the word-centric or term-centric algorithm.
+    ///
+    /// `candidateFound` selects discovery mode: when non-nil, the algorithms skip CTC scoring, set it to true and
+    /// return at the first candidate that would be scored acoustically.
+    private func rescore(
+        transcript: String,
+        tokenTimings: [TokenTiming],
+        logProbs: [[Float]],
+        frameDuration: Double,
+        cbw: Float,
+        marginSeconds: Double,
+        minSimilarity: Float,
+        candidateFound: inout Bool?
+    ) -> RescoreOutput {
         if useBKTree {
             return rescoreWithConstrainedCTCWordCentric(
                 transcript: transcript,
@@ -156,19 +214,20 @@ extension VocabularyRescorer {
                 frameDuration: frameDuration,
                 cbw: cbw,
                 marginSeconds: marginSeconds,
-                minSimilarity: minSimilarity
-            )
-        } else {
-            return rescoreWithConstrainedCTCTermCentric(
-                transcript: transcript,
-                tokenTimings: tokenTimings,
-                logProbs: logProbs,
-                frameDuration: frameDuration,
-                cbw: cbw,
-                marginSeconds: marginSeconds,
-                minSimilarity: minSimilarity
+                minSimilarity: minSimilarity,
+                candidateFound: &candidateFound
             )
         }
+        return rescoreWithConstrainedCTCTermCentric(
+            transcript: transcript,
+            tokenTimings: tokenTimings,
+            logProbs: logProbs,
+            frameDuration: frameDuration,
+            cbw: cbw,
+            marginSeconds: marginSeconds,
+            minSimilarity: minSimilarity,
+            candidateFound: &candidateFound
+        )
     }
 
     // MARK: - Word-Centric Algorithm (Experimental)
@@ -188,12 +247,13 @@ extension VocabularyRescorer {
         frameDuration: Double,
         cbw: Float = ContextBiasingConstants.defaultCbw,
         marginSeconds: Double = ContextBiasingConstants.defaultMarginSeconds,
-        minSimilarity: Float = ContextBiasingConstants.minSimilarityFloor
+        minSimilarity: Float = ContextBiasingConstants.minSimilarityFloor,
+        candidateFound: inout Bool?
     ) -> RescoreOutput {
         // Build word-level timings from token timings
         let wordTimings = buildWordTimings(from: tokenTimings)
 
-        guard !wordTimings.isEmpty, !logProbs.isEmpty else {
+        guard !wordTimings.isEmpty, candidateFound != nil || !logProbs.isEmpty else {
             return RescoreOutput(text: transcript, replacements: [], wasModified: false)
         }
 
@@ -347,6 +407,11 @@ extension VocabularyRescorer {
                     spanEndTime: spanEndTime
                 )
 
+                // Discovery stops at the exact scoring boundary, after all text safety guards.
+                if candidateFound != nil {
+                    candidateFound = true
+                    return RescoreOutput(text: transcript, replacements: [], wasModified: false)
+                }
                 let result = evaluateCTCMatch(
                     candidate: matchCandidate,
                     logProbs: logProbs,
@@ -393,12 +458,13 @@ extension VocabularyRescorer {
         frameDuration: Double,
         cbw: Float = ContextBiasingConstants.defaultCbw,
         marginSeconds: Double = ContextBiasingConstants.defaultMarginSeconds,
-        minSimilarity: Float = ContextBiasingConstants.minSimilarityFloor
+        minSimilarity: Float = ContextBiasingConstants.minSimilarityFloor,
+        candidateFound: inout Bool?
     ) -> RescoreOutput {
         // Build word-level timings from token timings
         let wordTimings = buildWordTimings(from: tokenTimings)
 
-        guard !wordTimings.isEmpty, !logProbs.isEmpty else {
+        guard !wordTimings.isEmpty, candidateFound != nil || !logProbs.isEmpty else {
             return RescoreOutput(text: transcript, replacements: [], wasModified: false)
         }
 
@@ -522,6 +588,11 @@ extension VocabularyRescorer {
                             spanEndTime: spanEndTime
                         )
 
+                        // Discovery stops at the exact scoring boundary, after all text safety guards.
+                        if candidateFound != nil {
+                            candidateFound = true
+                            return RescoreOutput(text: transcript, replacements: [], wasModified: false)
+                        }
                         let result = evaluateCTCMatch(
                             candidate: matchCandidate,
                             logProbs: logProbs,
@@ -688,6 +759,11 @@ extension VocabularyRescorer {
                         spanEndTime: spanEndTime
                     )
 
+                    // Discovery stops at the exact scoring boundary, after all text safety guards.
+                    if candidateFound != nil {
+                        candidateFound = true
+                        return RescoreOutput(text: transcript, replacements: [], wasModified: false)
+                    }
                     let result = evaluateCTCMatch(
                         candidate: matchCandidate,
                         logProbs: logProbs,

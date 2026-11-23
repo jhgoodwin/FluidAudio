@@ -537,6 +537,19 @@ public actor SlidingWindowAsrManager {
             return nil
         }
 
+        // Determine rescoring parameters based on vocabulary size,
+        // but respect the caller-specified threshold when stricter.
+        let vocabConfig = vocabSizeConfig ?? ContextBiasingConstants.rescorerConfig(forVocabSize: 0)
+        let minSimilarity = max(vocabConfig.minSimilarity, vocab.minSimilarity)
+        let cbw = vocabConfig.cbw
+
+        guard
+            rescorer.hasCTCRescoringCandidates(
+                transcript: text, tokenTimings: tokenTimings, minSimilarity: minSimilarity)
+        else {
+            return nil
+        }
+
         do {
             // Run CTC inference on the chunk audio to get log probabilities
             let spotResult = try await spotter.computeLogProbabilities(audioSamples: windowSamples)
@@ -546,12 +559,6 @@ public actor SlidingWindowAsrManager {
                 logger.debug("Vocabulary rescoring skipped: no log probs from CTC")
                 return nil
             }
-
-            // Determine rescoring parameters based on vocabulary size,
-            // but respect the caller-specified threshold when stricter.
-            let vocabConfig = vocabSizeConfig ?? ContextBiasingConstants.rescorerConfig(forVocabSize: 0)
-            let minSimilarity = max(vocabConfig.minSimilarity, vocab.minSimilarity)
-            let cbw = vocabConfig.cbw
 
             // Apply constrained CTC rescoring
             let rescoreOutput = rescorer.ctcTokenRescore(

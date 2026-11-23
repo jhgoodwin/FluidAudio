@@ -1,0 +1,29 @@
+{
+  "alpha": 2.8,
+  "minCtcScore": -2.2,
+  "minSimilarity": 0.72,
+  "minCombinedConfidence": 0.64,
+  "minTermLength": 3,
+  "terms": [
+    { "text": "FluidVoice", "aliases": ["fluid voice", "fluid boys"], "weight": 10.0 },
+    { "text": "FluidAudio", "aliases": ["fluid audio"], "weight": 10.0 },
+    { "text": "FluidMeet", "aliases": ["fluid meet"], "weight": 10.0 },
+    { "text": "Parakeet", "weight": 10.0 },
+    { "text": "Nemotron", "weight": 10.0 },
+    { "text": "Sortformer", "aliases": ["sort former"], "weight": 10.0 },
+    { "text": "Cloudflare", "weight": 10.0 },
+    { "text": "Astra", "weight": 10.0 },
+    { "text": "TypeScript", "aliases": ["type script"], "weight": 10.0 },
+    { "text": "ComfyUI", "aliases": ["comfy UI"], "weight": 10.0 },
+    { "text": "Anthropic", "weight": 10.0 },
+    { "text": "PNPM", "weight": 10.0 },
+    { "text": "HuggingFace", "aliases": ["hugging face"], "weight": 10.0 },
+    { "text": "CoreML", "aliases": ["core ML"], "weight": 10.0 },
+    { "text": "Xcode", "aliases": ["X code"], "weight": 10.0 },
+    { "text": "GitHub", "aliases": ["git hub"], "weight": 10.0 },
+    { "text": "Windsurf", "aliases": ["wind surf"], "weight": 10.0 },
+    { "text": "Devin", "weight": 10.0 },
+    { "text": "SQLite", "aliases": ["sequel lite"], "weight": 10.0 },
+    { "text": "Kubernetes", "weight": 10.0 }
+  ]
+}

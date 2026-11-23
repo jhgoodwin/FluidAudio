@@ -774,6 +774,18 @@ extension AsrManager {
             return result
         }
 
+        let vocabConfig = vocabSizeConfig ?? ContextBiasingConstants.rescorerConfig(forVocabSize: 0)
+        // Use the higher of the size-based default and the caller-specified threshold
+        // so that CustomVocabularyContext.minSimilarity is respected when stricter.
+        let effectiveMinSimilarity = max(vocabConfig.minSimilarity, vocab.minSimilarity)
+
+        guard
+            rescorer.hasCTCRescoringCandidates(
+                transcript: result.text, tokenTimings: tokenTimings, minSimilarity: effectiveMinSimilarity)
+        else {
+            return result
+        }
+
         do {
             let spotResult = try await spotter.computeLogProbabilities(audioSamples: audioSamples)
 
@@ -782,11 +794,6 @@ extension AsrManager {
                 logger.debug("Vocabulary rescoring skipped: no log probs from CTC")
                 return result
             }
-
-            let vocabConfig = vocabSizeConfig ?? ContextBiasingConstants.rescorerConfig(forVocabSize: 0)
-            // Use the higher of the size-based default and the caller-specified threshold
-            // so that CustomVocabularyContext.minSimilarity is respected when stricter.
-            let effectiveMinSimilarity = max(vocabConfig.minSimilarity, vocab.minSimilarity)
 
             let rescoreOutput = rescorer.ctcTokenRescore(
                 transcript: result.text,
